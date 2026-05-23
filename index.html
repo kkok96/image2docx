@@ -3,389 +3,321 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>图片转Word · 在线工具</title>
-  <script src="https://unpkg.com/docx@8.5.0/build/index.min.js"></script>
+  <title>图片转 Word</title>
+  <meta name="description" content="上传图片，生成排版精美的 Word 文档">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🖼️</text></svg>">
+
+  <script src="https://cdn.jsdelivr.net/npm/docx@8.5/build/index.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/file-saver@2.0.5/dist/FileSaver.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.6/Sortable.min.js"></script>
+
   <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
     body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+      background: #f0f2f5;
+      color: #333;
       min-height: 100vh;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      padding: 20px;
     }
-    .container {
-      background: #fff;
-      border-radius: 20px;
-      box-shadow: 0 20px 60px rgba(0,0,0,0.1);
-      width: 100%;
-      max-width: 700px;
-      padding: 40px;
+
+    header {
+      text-align: center;
+      padding: 40px 20px 20px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: #fff;
     }
-    h1 {
-      font-size: 26px;
-      color: #1a1a2e;
-      margin-bottom: 8px;
+    header h1 { font-size: 28px; font-weight: 700; margin-bottom: 6px; }
+    header p { font-size: 14px; opacity: 0.85; }
+
+    main { max-width: 960px; margin: 0 auto; padding: 24px 20px 60px; }
+
+    /* 上传区域 */
+    #uploadZone {
+      border: 2px dashed #ccc;
+      border-radius: 12px;
+      padding: 48px 20px;
+      text-align: center;
+      background: #fafafa;
+      transition: all 0.25s;
+      cursor: pointer;
+      user-select: none;
+    }
+    #uploadZone:hover,
+    #uploadZone.dragover {
+      border-color: #667eea;
+      background: #eef1ff;
+    }
+    #uploadZone .icon { font-size: 44px; margin-bottom: 10px; }
+    #uploadZone .title { font-size: 16px; font-weight: 600; color: #555; margin-bottom: 4px; }
+    #uploadZone .hint { font-size: 13px; color: #999; }
+
+    /* 工具栏 */
+    #toolbar {
       display: flex;
       align-items: center;
+      justify-content: space-between;
+      margin: 20px 0 12px;
+      flex-wrap: wrap;
       gap: 10px;
     }
-    h1 span { font-size: 28px; }
-    .subtitle {
-      color: #666;
-      font-size: 14px;
-      margin-bottom: 30px;
-    }
-    .dropzone {
-      border: 2px dashed #bbb;
-      border-radius: 16px;
-      padding: 40px 20px;
-      text-align: center;
+    #toolbar .count { font-weight: 600; color: #555; }
+    #toolbar .link-btn {
+      background: none;
+      border: none;
+      color: #e74c3c;
       cursor: pointer;
-      transition: all 0.3s;
-      background: #fafbfc;
+      font-size: 14px;
+      padding: 4px 8px;
     }
-    .dropzone:hover, .dropzone.dragover {
-      border-color: #5b6abf;
-      background: #f0f2ff;
-    }
-    .dropzone .icon { font-size: 48px; margin-bottom: 12px; }
-    .dropzone p { color: #555; font-size: 16px; }
-    .dropzone .hint { color: #999; font-size: 13px; margin-top: 8px; }
-    .preview-area {
+    #toolbar .link-btn:hover { text-decoration: underline; }
+
+    /* 画廊 */
+    .gallery {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
-      gap: 12px;
-      margin-top: 20px;
-      min-height: 60px;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 16px;
+      margin-bottom: 20px;
     }
-    .preview-item {
-      position: relative;
+    .image-card {
+      background: #fff;
       border-radius: 10px;
       overflow: hidden;
-      aspect-ratio: 1;
-      background: #eee;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+      box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+      transition: box-shadow 0.2s, transform 0.15s;
+      position: relative;
     }
-    .preview-item img {
+    .image-card:hover { box-shadow: 0 6px 20px rgba(0,0,0,0.11); }
+    .image-card .thumbnail {
       width: 100%;
-      height: 100%;
+      height: 160px;
       object-fit: cover;
       display: block;
+      background: #eee;
     }
-    .preview-item .remove {
+    .drag-handle {
       position: absolute;
-      top: 4px; right: 4px;
-      width: 22px; height: 22px;
-      background: rgba(0,0,0,0.6);
+      top: 6px;
+      left: 6px;
+      width: 28px;
+      height: 28px;
+      background: rgba(0,0,0,0.35);
       color: #fff;
-      border: none;
-      border-radius: 50%;
-      font-size: 14px;
-      cursor: pointer;
+      border-radius: 5px;
       display: flex;
       align-items: center;
       justify-content: center;
+      cursor: grab;
+      font-size: 16px;
+      z-index: 2;
       line-height: 1;
+      user-select: none;
     }
-    .preview-item .order {
+    .drag-handle:active { cursor: grabbing; }
+
+    .image-card .delete-btn {
       position: absolute;
-      bottom: 4px; left: 4px;
-      background: rgba(0,0,0,0.6);
+      top: 6px;
+      right: 6px;
+      width: 28px;
+      height: 28px;
+      background: rgba(231,76,60,0.8);
       color: #fff;
-      font-size: 11px;
-      padding: 1px 7px;
-      border-radius: 6px;
-    }
-    .actions {
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 16px;
+      line-height: 1;
       display: flex;
-      gap: 12px;
-      margin-top: 24px;
+      align-items: center;
+      justify-content: center;
+      z-index: 2;
+      transition: background 0.2s;
+    }
+    .image-card .delete-btn:hover { background: #e74c3c; }
+
+    .image-card .card-body { padding: 10px 12px; }
+    .image-card .card-body input[type="text"] {
+      width: 100%;
+      border: 1px solid #e0e0e0;
+      border-radius: 5px;
+      padding: 7px 10px;
+      font-size: 13px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    .image-card .card-body input[type="text"]:focus { border-color: #667eea; }
+    .image-card .card-body input[type="text"]::placeholder { color: #bbb; }
+
+    .image-card .card-footer {
+      padding: 8px 12px;
+      font-size: 11px;
+      color: #999;
+      display: flex;
+      justify-content: space-between;
+      border-top: 1px solid #f5f5f5;
+    }
+
+    .sortable-ghost {
+      opacity: 0.35;
+      outline: 2px dashed #667eea;
+      outline-offset: -2px;
+      border-radius: 10px;
+    }
+    .sortable-chosen { opacity: 0.85; }
+
+    /* 空状态 */
+    .empty-state {
+      text-align: center;
+      padding: 48px 20px;
+      color: #bbb;
+      font-size: 14px;
+    }
+
+    /* 设置面板 */
+    #settingsPanel { margin-bottom: 20px; }
+    #settingsPanel details {
+      background: #fff;
+      border-radius: 10px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+      overflow: hidden;
+    }
+    #settingsPanel summary {
+      padding: 14px 20px;
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 14px;
+      color: #555;
+      user-select: none;
+    }
+    #settingsPanel summary:hover { background: #fafafa; }
+    .settings-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px 20px;
+      padding: 0 20px 18px;
+    }
+    @media (max-width: 500px) { .settings-grid { grid-template-columns: 1fr; } }
+    .settings-grid label {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 14px;
+      color: #555;
       flex-wrap: wrap;
     }
-    .btn {
-      flex: 1;
-      min-width: 140px;
-      padding: 14px 24px;
-      border: none;
-      border-radius: 12px;
-      font-size: 16px;
+    .settings-grid input[type="range"] { flex: 1; min-width: 100px; }
+    .settings-grid select {
+      padding: 5px 10px;
+      border: 1px solid #ddd;
+      border-radius: 5px;
+      font-size: 13px;
+      background: #fff;
+    }
+    .settings-grid input[type="checkbox"] { width: 16px; height: 16px; accent-color: #667eea; }
+
+    /* 生成按钮 */
+    #actionSection { text-align: center; }
+    #generateBtn {
+      width: 100%;
+      max-width: 500px;
+      padding: 16px 24px;
+      font-size: 18px;
       font-weight: 600;
-      cursor: pointer;
-      transition: all 0.2s;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 8px;
-    }
-    .btn-primary {
-      background: #5b6abf;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
       color: #fff;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: opacity 0.2s, transform 0.1s;
+      box-shadow: 0 4px 14px rgba(102,126,234,0.35);
     }
-    .btn-primary:hover { background: #4a59b0; transform: translateY(-1px); }
-    .btn-primary:disabled {
-      background: #b0b8d9;
+    #generateBtn:hover { opacity: 0.9; transform: translateY(-1px); }
+    #generateBtn:active { transform: translateY(0); }
+    #generateBtn:disabled {
+      opacity: 0.5;
       cursor: not-allowed;
       transform: none;
     }
-    .btn-secondary {
-      background: #eef0f5;
-      color: #444;
+    #generateBtn.empty { opacity: 0.55; }
+    .hint-text { font-size: 13px; color: #999; margin-top: 8px; }
+
+    /* 响应式 */
+    @media (max-width: 600px) {
+      .gallery { grid-template-columns: 1fr 1fr; gap: 10px; }
+      .image-card .thumbnail { height: 130px; }
+      header { padding: 28px 16px 16px; }
+      header h1 { font-size: 22px; }
+      main { padding: 16px 12px 40px; }
     }
-    .btn-secondary:hover { background: #e2e5ed; }
-    .btn-clear {
-      background: #fee2e2;
-      color: #b91c1c;
-    }
-    .btn-clear:hover { background: #fecaca; }
-    .status {
-      margin-top: 16px;
-      padding: 12px 16px;
-      border-radius: 10px;
-      font-size: 14px;
-      display: none;
-    }
-    .status.show { display: block; }
-    .status.ok { background: #d1fae5; color: #065f46; }
-    .status.err { background: #fee2e2; color: #991b1b; }
-    .status.info { background: #dbeafe; color: #1e40af; }
-    .filename-input {
-      width: 100%;
-      padding: 10px 14px;
-      border: 1px solid #ddd;
-      border-radius: 10px;
-      font-size: 14px;
-      margin-top: 12px;
-      outline: none;
-      transition: border 0.2s;
-    }
-    .filename-input:focus { border-color: #5b6abf; }
-    @media (max-width: 480px) {
-      .container { padding: 24px; }
-      .actions { flex-direction: column; }
-      .btn { min-width: auto; }
+    @media (max-width: 380px) {
+      .gallery { grid-template-columns: 1fr; }
     }
   </style>
 </head>
 <body>
-<div class="container">
-  <h1><span>🖼️</span> 图片转 Word</h1>
-  <p class="subtitle">上传图片，一键导出为 Word 文档（.docx）</p>
+  <header>
+    <h1>🖼️ 图片转 Word</h1>
+    <p>上传图片 &middot; 调整顺序 &middot; 一键生成 Word 文档</p>
+  </header>
 
-  <div class="dropzone" id="dropzone">
-    <div class="icon">📁</div>
-    <p>点击上传或拖拽图片到这里</p>
-    <div class="hint">支持 JPG / PNG / WebP / GIF，可多选</div>
-    <input type="file" accept="image/*" multiple id="fileInput" style="display:none">
-  </div>
+  <main>
+    <!-- 上传区域 -->
+    <div id="uploadZone">
+      <input type="file" id="fileInput" multiple accept="image/*" hidden>
+      <div class="icon">📁</div>
+      <div class="title">选择图片或将图片拖拽到这里</div>
+      <div class="hint">支持 JPG / PNG / WebP，可一次选择多张</div>
+    </div>
 
-  <div class="preview-area" id="previewArea"></div>
+    <!-- 工具栏 -->
+    <div id="toolbar">
+      <span class="count" id="countDisplay">暂无图片</span>
+      <button id="clearBtn" class="link-btn" style="display:none">清空全部</button>
+    </div>
 
-  <input type="text" class="filename-input" id="filenameInput" placeholder="文件名（可选，默认为「我的文档」）" />
+    <!-- 图片画廊 -->
+    <div id="gallery" class="gallery"></div>
 
-  <div class="actions">
-    <button class="btn btn-primary" id="exportBtn">📄 导出 Word</button>
-    <button class="btn btn-clear" id="clearBtn">🗑️ 清空</button>
-  </div>
+    <!-- 设置面板 -->
+    <div id="settingsPanel" style="display:none">
+      <details>
+        <summary>⚙️ 页面设置</summary>
+        <div class="settings-grid">
+          <label>
+            <input type="checkbox" id="perPageChk" checked>
+            每张图片单独一页
+          </label>
+          <label>
+            图片最大宽度: <span id="imgWidthVal">600px</span>
+            <input type="range" id="imgWidthRange" min="200" max="1000" value="600" step="10">
+          </label>
+          <label>
+            纸张方向:
+            <select id="orientationSel">
+              <option value="portrait">纵向 (A4)</option>
+              <option value="landscape">横向 (A4)</option>
+            </select>
+          </label>
+          <label>
+            图片对齐:
+            <select id="alignSel">
+              <option value="center" selected>居中</option>
+              <option value="left">左对齐</option>
+              <option value="right">右对齐</option>
+            </select>
+          </label>
+        </div>
+      </details>
+    </div>
 
-  <div class="status" id="status"></div>
-</div>
+    <!-- 生成区域 -->
+    <div id="actionSection">
+      <button id="generateBtn" class="empty">📥 生成 Word 文档并下载</button>
+      <p class="hint-text" id="sizeHint"></p>
+    </div>
+  </main>
 
-<script>
-(function() {
-  const images = [];
-
-  const dropzone = document.getElementById('dropzone');
-  const fileInput = document.getElementById('fileInput');
-  const previewArea = document.getElementById('previewArea');
-  const exportBtn = document.getElementById('exportBtn');
-  const clearBtn = document.getElementById('clearBtn');
-  const filenameInput = document.getElementById('filenameInput');
-  const statusEl = document.getElementById('status');
-
-  function showStatus(msg, type) {
-    statusEl.textContent = msg;
-    statusEl.className = 'status show ' + (type || 'info');
-  }
-  function hideStatus() { statusEl.className = 'status'; }
-
-  function render() {
-    previewArea.innerHTML = '';
-    images.forEach((item, i) => {
-      const div = document.createElement('div');
-      div.className = 'preview-item';
-      div.innerHTML = `
-        <img src="${item.dataUrl}" alt="图片${i+1}">
-        <button class="remove" data-index="${i}">×</button>
-        <span class="order">${i+1}</span>
-      `;
-      previewArea.appendChild(div);
-    });
-    previewArea.querySelectorAll('.remove').forEach(btn => {
-      btn.addEventListener('click', function(e) {
-        e.stopPropagation();
-        const idx = parseInt(this.dataset.index);
-        images.splice(idx, 1);
-        render();
-        hideStatus();
-        if (images.length === 0) exportBtn.disabled = true;
-      });
-    });
-    exportBtn.disabled = images.length === 0;
-  }
-
-  function addFiles(files) {
-    if (!files || files.length === 0) return;
-    const valid = [];
-    for (const f of files) {
-      if (!f.type.startsWith('image/')) continue;
-      valid.push(f);
-    }
-    if (valid.length === 0) {
-      showStatus('没有找到图片文件，请上传 JPG/PNG/WebP/GIF 格式', 'err');
-      return;
-    }
-    let loaded = 0;
-    valid.forEach(f => {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        images.push({ dataUrl: e.target.result, file: f });
-        loaded++;
-        if (loaded === valid.length) { render(); hideStatus(); }
-      };
-      reader.onerror = () => {
-        loaded++;
-        showStatus(`读取 ${f.name} 失败`, 'err');
-        if (loaded === valid.length) render();
-      };
-      reader.readAsDataURL(f);
-    });
-  }
-
-  dropzone.addEventListener('click', () => fileInput.click());
-  fileInput.addEventListener('change', (e) => {
-    addFiles(e.target.files);
-    fileInput.value = '';
-  });
-
-  dropzone.addEventListener('dragover', (e) => {
-    e.preventDefault();
-    dropzone.classList.add('dragover');
-  });
-  dropzone.addEventListener('dragleave', () => {
-    dropzone.classList.remove('dragover');
-  });
-  dropzone.addEventListener('drop', (e) => {
-    e.preventDefault();
-    dropzone.classList.remove('dragover');
-    addFiles(e.dataTransfer.files);
-  });
-
-  clearBtn.addEventListener('click', () => {
-    images.length = 0;
-    previewArea.innerHTML = '';
-    exportBtn.disabled = true;
-    hideStatus();
-  });
-
-  exportBtn.addEventListener('click', async () => {
-    if (images.length === 0) {
-      showStatus('请先上传图片', 'err');
-      return;
-    }
-    exportBtn.disabled = true;
-    exportBtn.textContent = '⏳ 生成中...';
-    showStatus('正在生成 Word 文档...', 'info');
-
-    try {
-      const { Document, Packer, Paragraph, ImageRun } = window.docx;
-
-      const imageParagraphs = [];
-
-      for (let i = 0; i < images.length; i++) {
-        const item = images[i];
-        try {
-          const resp = await fetch(item.dataUrl);
-          const blob = await resp.blob();
-          const arrayBuffer = await blob.arrayBuffer();
-
-          const img = new Image();
-          img.src = item.dataUrl;
-          await new Promise((resolve, reject) => {
-            img.onload = resolve;
-            img.onerror = reject;
-          });
-
-          const maxWidth = 451;
-          const maxHeight = 600;
-          let w = img.naturalWidth;
-          let h = img.naturalHeight;
-          if (w > maxWidth) { h = (maxWidth / w) * h; w = maxWidth; }
-          if (h > maxHeight) { w = (maxHeight / h) * w; h = maxHeight; }
-
-          let mime = item.file ? item.file.type : 'image/png';
-          if (mime === 'image/webp') mime = 'image/png';
-
-          imageParagraphs.push(
-            new Paragraph({
-              spacing: { after: 200 },
-              alignment: 'center',
-              children: [
-                new ImageRun({
-                  data: arrayBuffer,
-                  transformation: { width: Math.round(w * 1.33), height: Math.round(h * 1.33) },
-                  type: ImageRun.imageType[mime.replace('image/', '').toUpperCase()] || ImageRun.imageType.PNG,
-                })
-              ],
-            })
-          );
-        } catch (err) {
-          console.error(`处理第 ${i+1} 张图片失败:`, err);
-          showStatus(`第 ${i+1} 张图片处理失败，请重试`, 'err');
-          exportBtn.disabled = false;
-          exportBtn.textContent = '📄 导出 Word';
-          return;
-        }
-      }
-
-      const doc = new Document({
-        title: '图片文档',
-        description: '由小可工具生成',
-        sections: [{
-          properties: {
-            page: {
-              margin: { top: 1440, right: 1440, bottom: 1440, left: 1440 },
-            }
-          },
-          children: imageParagraphs,
-        }],
-      });
-
-      const blobOut = await Packer.toBlob(doc);
-      const fileName = (filenameInput.value.trim() || '我的文档') + '.docx';
-
-      const link = document.createElement('a');
-      link.href = URL.createObjectURL(blobOut);
-      link.download = fileName;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      setTimeout(() => URL.revokeObjectURL(link.href), 10000);
-
-      showStatus(`✅ ${fileName} 下载成功！共 ${images.length} 张图片`, 'ok');
-    } catch (err) {
-      console.error('导出失败:', err);
-      showStatus('导出失败：' + (err.message || '未知错误'), 'err');
-    } finally {
-      exportBtn.disabled = false;
-      exportBtn.textContent = '📄 导出 Word';
-    }
-  });
-
-  exportBtn.disabled = true;
-})();
-</script>
+  <script src="app.js"></script>
 </body>
 </html>
